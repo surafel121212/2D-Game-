@@ -1,0 +1,41 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'release/**'
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Android project
+        uses: actions/checkout@v3
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: 11
+      - name: Build with Gradle
+        run: ./gradlew bundleRelease
+      - name: Get AAB file path
+        id: aab-path
+        run: echo "path=$(find . -regex '^.*/build/outputs/bundle/.*\.aab$' -type f | head -1)" >> $GITHUB_OUTPUT
+      - name: Upload AAB file to Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          path: ${{ steps.aab-path.outputs.path }}
+      - name: Generate Universal APK file  
+        uses: snnaplab/universal-apk-generate-action@v1
+        id: apk-generate
+        with:
+          aab-path: ${{ steps.aab-path.outputs.path }}
+          keystore-base64: ${{ secrets.KEYSTORE_BASE64 }}
+          keystore-password: ${{ secrets.KEYSTORE_PASSWORD }}
+          key-alias: ${{ secrets.KEY_ALIAS }}
+          key-password: ${{ secrets.KEY_PASSWORD }}
+      - name: Upload APK file to Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          path: ${{ steps.apk-generate.outputs.apk-path }}
